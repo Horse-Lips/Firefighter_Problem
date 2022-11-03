@@ -1,35 +1,39 @@
-include "alldifferent_except_0.mzn";
-include "at_most.mzn";
-include "count.mzn";
-
 %======================== Pre-Defined Variables ========================%
-int: maxTime;                       %Max time before game endds%        %
-int: budget;                        %Num firefighters  placed per turn  %
+include "count.mzn";                                                    %
                                                                         %
-array[int] of int: fireLocations;   %Initial fire locations             %
-array[int] of int: from;            %Edge representation                %
-array[int] of int: to;              %of the graph                       %
+int:                    n;      %Number of nodes in G                   %
+int:                    T;      %Max time before game endds%            %
+array[int] of int:      f;      %Initial fire locations                 %
+array[1..n, 1..n] of 0..1: G;   %Adjancey matrix Graph                  %
+int:                    budget; %Num firefighters  placed per turn      %
 %=======================================================================%
+array[1..n] of var 0..T: d;   %Time each node is defended
+array[1..n] of var 0..T: b;   %Time each node is burned
 
-array[1..max(from)] of var 0..maxTime: defended;    %Time each node is defended
-array[1..max(from)] of var 0..maxTime: onFire;      %Time each node becomes on fire
-
-constraint forall(i in fireLocations)(onFire[i] == 1);              %Fires at initial locations
-constraint at_most(length(fireLocations), onFire, 1);               %Most fires possible at t = 1
-constraint forall(t in 1..maxTime)(at_most(budget, defended, t));   %Stay in budget for each time t
-
-constraint forall(i in 1..max(from))(
-    if     onFire[i]   != 0 then defended[i] == 0   %If the node is on fire it cannot be defended
-    elseif defended[i] != 0 then onFire[i]   == 0   %If the node is defended it cannot be set on fire
+constraint forall(i in f)(b[i] == 1);   %Initial fire locations
+constraint count(b, 1, length(f));      %Max fires at t=1
+constraint count(d, 1, 0);
+constraint forall(i in 1..length(f))(
+    if     b[i] != 0 then d[i] == 0     %Cannot defend burning nodes
+    elseif d[i] != 0 then b[i] == 0     %Cannot burn defended nodes
     else true endif
 );
 
-constraint forall(t in 1..maxTime, i in 1..length(from))(           %For each t, for each edge
-    if onFire[from[i]] == t then                                    %If node on fire at t
-        if onFire[to[i]] == 0 \/ onFire[to[i]] > t then             %If adj node not on fire
-            if defended[to[i]] == 0 \/ defended[to[i]] > t then     %If adj node not defended
-                onFire[to[i]] == t + 1 endif endif endif            %Then adj node burns at t + 1
+constraint forall(t in 1..T)(
+    count(j in d)(j == t) <= budget %Remain in budget for each time t
 );
 
-solve maximize count(onFire, 0);    %Maximise the number of "saved" nodes
-output ["d: \(defended)\nf: \(onFire)"];
+constraint forall(x in 1..n)(
+    forall(y in 1..length(row(G, x)))(
+        if G[x, y] == 1 /\ b[y] != 0 then
+            if b[x] == 0 \/ b[x] > b[y] then
+                if d[x] == 0 \/ d[x] > b[y] then
+                    b[x] + d[x] == b[y] + 1
+                endif
+            endif
+        endif
+    )
+);
+
+solve maximize count(b, 0);    %Maximise the number of "saved" nodes
+output ["d: \(d)\nb: \(b)"];

@@ -1,0 +1,6 @@
+@Misc{ffp-instances-page,
+ author = {Natanael Ramos and Cid C. de Souza and Pedro J. de Rezende},
+ title = {The Firefighter Problem on Graphs - Benchmark Instances},
+ year = {2018},
+ note = {{\sl www.ic.unicamp.br/\textasciitilde cid/Problem-instances/ffp}}
+}
