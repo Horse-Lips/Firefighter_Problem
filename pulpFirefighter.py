@@ -1,14 +1,18 @@
 from pulp          import LpVariable, LpInteger, LpProblem, LpMinimize, lpSum
 from minizinc      import Instance, Model, Solver
+from datetime      import datetime, timedelta
 import numpy as np
 import os
 
 
-# ===== Pre-Defined Variables ===== #
-testDir = "benchmarkSet/BBGRL/"     #
-budget  = 1                         #
-# ================================= #
+# ========================= Pre-Defined Variables ========================= #
+testDir = "benchmarkSet/BBGRL/" #Test set DIR (See loadGraph() for format)  #
+budget  = 1     #Firefighter budget each turn                               #
+nSet    = 50    #Number of nodes acceptable                                 #
+# ========================================================================= #
 
+pulpTimes = []
+mznTimes  = []
 
 def loadGraph(lines):
     """
@@ -32,7 +36,7 @@ def loadGraph(lines):
         G[int(line[0])][int(line[1])] = 1
         G[int(line[1])][int(line[0])] = 1
 
-    return (n, (n // 2), f, G)
+    return (n, n, f, G)
 
 
 def pulpSolver(n, T, f, G):
@@ -67,14 +71,16 @@ def pulpSolver(n, T, f, G):
 
             for y in nX:
                 lp += (b[x][t] + d[x][t] >= b[y][t - 1], "")    #Determines the fire's spread
-            
+    
+    start = datetime.now()
     lp.solve()
+    pulpTimes.append(float((datetime.now() - start).total_seconds()))
 
 
 def minizincSolver(n, T, f, G):
     """
      - Calls the minizinc encoding/solver found in the file "firefighter.mzn".
-     - Uses the gecode solver found at https://www.gecode.org/
+     - Uses the ortools solver found at https://github.com/google/or-tools
      - Args:
         - n - Number of nodes in the graph G
         - T - Maximum time limit
@@ -82,24 +88,45 @@ def minizincSolver(n, T, f, G):
         - G - Adjacency list graph
     """
     model  = Model("firefighter.mzn")   #Load the model
-    solver = Solver.lookup("gecode")    #Set solver to gecode
+    solver = Solver.lookup("ortools")    #Set solver to gecode
 
     instance = Instance(solver, model)
 
     instance["n"] = n
     instance["T"] = T
-    instance["f"] = f
+    instance["f"] = [i + 1 for i in f]  #Minizinc indexes starting from 1
     instance["G"] = G
     instance["budget"] = budget
 
-    result = instance.solve()
-    print(result)
+    start = datetime.now()
+    instance.solve(processes = 8)
+    mznTimes.append(float((datetime.now() - start).total_seconds()))
 
 
 for testFile in os.listdir(testDir):
     gFile = open(testDir + testFile)
     n, T, f, G = loadGraph(gFile.readlines())
 
-    #pulpSolver(n, T, f, G)
-    minizincSolver(n, T, f, G)
-    
+    if n == nSet:
+        pulpSolver(n, T, f, G)
+        minizincSolver(n, T, f, G)
+
+
+timeFile = open("times_" + str(nSet) + "nodes.csv", 'w')
+
+pTime = ""
+for i in pulpTimes:
+    pTime += str(i) + ", "
+
+pTime += "\n"
+
+mTime = ""
+for i in mznTimes:
+    mTime += str(i) + ", "
+
+mTime += ""
+
+timeFile.write(pTime)
+timeFile.write(mTime)
+
+timeFile.close()

@@ -1,18 +1,19 @@
 %======================== Pre-Defined Variables ========================%
 include "count.mzn";                                                    %
                                                                         %
-int:                    n;      %Number of nodes in G                   %
-int:                    T;      %Max time before game endds%            %
-array[int] of int:      f;      %Initial fire locations                 %
-array[1..n, 1..n] of 0..1: G;   %Adjancey matrix Graph                  %
-int:                    budget; %Num firefighters  placed per turn      %
+int:                       n;      %Number of nodes in G                %
+int:                       T;      %Max time before game endds%         %
+array[int] of int:         f;      %Initial fire locations              %
+array[1..n, 1..n] of 0..1: G;      %Adjancey matrix Graph               %
+int:                       budget; %Num firefighters  placed per turn   %
 %=======================================================================%
 array[1..n] of var 0..T: d;   %Time each node is defended
 array[1..n] of var 0..T: b;   %Time each node is burned
 
 constraint forall(i in f)(b[i] == 1);   %Initial fire locations
-constraint count(b, 1, length(f));      %Max fires at t=1
-constraint count(d, 1, 0);
+constraint count(b, 1, length(f));      %Max fires at t = 1
+constraint count(d, 1, 0);              %No nodes defended at t = 1
+
 constraint forall(i in 1..length(f))(
     if     b[i] != 0 then d[i] == 0     %Cannot defend burning nodes
     elseif d[i] != 0 then b[i] == 0     %Cannot burn defended nodes
@@ -36,4 +37,3 @@ constraint forall(x in 1..n)(
 );
 
 solve maximize count(b, 0);    %Maximise the number of "saved" nodes
-output ["d: \(d)\nb: \(b)"];
