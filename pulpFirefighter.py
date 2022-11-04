@@ -1,15 +1,15 @@
-from pulp          import LpVariable, LpInteger, LpProblem, LpMinimize, lpSum
+from pulp          import LpVariable, LpInteger, LpProblem, LpMinimize, lpSum, getSolver
 from minizinc      import Instance, Model, Solver
 from datetime      import datetime, timedelta
 import numpy as np
-import os
+import os, sys
 
 
-# ========================= Pre-Defined Variables ========================= #
-testDir = "benchmarkSet/BBGRL/" #Test set DIR (See loadGraph() for format)  #
-budget  = 1     #Firefighter budget each turn                               #
-nSet    = 50    #Number of nodes acceptable                                 #
-# ========================================================================= #
+# ========================= Pre-Defined Variables ===================== #
+testDir = sys.argv[1]   #Test set DIR (See loadGraph() for format)      #
+budget  = 1             #Firefighter budget each turn                   #
+nSet    = 50            #Number of nodes acceptable                     #
+# ===================================================================== #
 
 pulpTimes = []
 mznTimes  = []
@@ -27,7 +27,7 @@ def loadGraph(lines):
         - G     - A graph as an adjacency matrix
     """
     n = int(lines[1].strip())
-    f = [int(i)  for i in lines[3].strip().split(" ")]
+
     G = [[0] * n for i in range(n)]
 
     for line in lines[6::]:
@@ -35,6 +35,17 @@ def loadGraph(lines):
 
         G[int(line[0])][int(line[1])] = 1
         G[int(line[1])][int(line[0])] = 1
+
+    if lines[3][0] == "d":   #Get max degree vertex
+        maxCount = 0
+
+        for x in range(n):
+            if len(np.where(np.array(G[x]))) > maxCount:
+                maxCount = len(np.where(np.array(G[x])))
+                f = [int(x)]
+
+    else:
+        f = [int(lines[3].strip().split(" ")[0])]
 
     return (n, n, f, G)
 
@@ -71,9 +82,12 @@ def pulpSolver(n, T, f, G):
 
             for y in nX:
                 lp += (b[x][t] + d[x][t] >= b[y][t - 1], "")    #Determines the fire's spread
-    
+
+    solver = getSolver("PULP_CBC_CMD")
+    solver.timeLimit = 300
+
     start = datetime.now()
-    lp.solve()
+    lp.solve(solver = solver)
     pulpTimes.append(float((datetime.now() - start).total_seconds()))
 
 
@@ -99,7 +113,7 @@ def minizincSolver(n, T, f, G):
     instance["budget"] = budget
 
     start = datetime.now()
-    instance.solve(processes = 8)
+    instance.solve(processes = 8, timeout = timedelta(minutes = 5))
     mznTimes.append(float((datetime.now() - start).total_seconds()))
 
 
@@ -112,21 +126,18 @@ for testFile in os.listdir(testDir):
         minizincSolver(n, T, f, G)
 
 
-timeFile = open("times_" + str(nSet) + "nodes.csv", 'w')
+timeFile = open("times_" + str(nSet) + "nodes_" + sys.argv[1][0:-1] + ".csv", 'w')
 
 pTime = ""
 for i in pulpTimes:
     pTime += str(i) + ", "
 
-pTime += "\n"
-
 mTime = ""
 for i in mznTimes:
     mTime += str(i) + ", "
 
-mTime += ""
-
-timeFile.write(pTime)
-timeFile.write(mTime)
+timeFile.write(pTime[0:-2])
+timeFile.write("\n")
+timeFile.write(mTime[0:-2])
 
 timeFile.close()

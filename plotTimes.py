@@ -1,13 +1,19 @@
-import plotly.express as px
+import matplotlib.pyplot as plt
+import sys
 
-timeFile = open("times.csv")
-timeLists = timeFile.readlines()
+colours = ["tab:blue", "tab:orange", "tab:green", "tab:purple", "tab:gray"]
+timeFiles = sys.argv[1::]
 
-pulpTimes = [float(i) for i in timeLists[0].strip().split(", ")]
-mznTimes  = [float(i) for i in timeLists[1].strip().split(", ")]
+for i in range(len(timeFiles)):
+    tFile = open(timeFiles[i], 'r')
+    tList = tFile.readlines()
 
-print(pulpTimes)
-print(mznTimes)
+    pulpTimes = [float(i) for i in tList[0].strip().split(", ")]
+    mznTimes  = [float(i) for i in tList[1].strip().split(", ")]
 
-fig = px.scatter(x = pulpTimes, y = mznTimes)
-fig.show()
+    plt.scatter(pulpTimes, mznTimes, c = colours[i], label = timeFiles[i])
+
+plt.xlabel("PulP CBC Solver Times (Seconds)")
+plt.ylabel("MiniZinc OR-Tools Solver Times (Seconds)")
+plt.legend()
+plt.show()

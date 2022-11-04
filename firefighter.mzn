@@ -2,7 +2,7 @@
 include "count.mzn";                                                    %
                                                                         %
 int:                       n;      %Number of nodes in G                %
-int:                       T;      %Max time before game endds%         %
+int:                       T;      %Max time before game ends           %
 array[int] of int:         f;      %Initial fire locations              %
 array[1..n, 1..n] of 0..1: G;      %Adjancey matrix Graph               %
 int:                       budget; %Num firefighters  placed per turn   %
@@ -24,7 +24,7 @@ constraint forall(t in 1..T)(
     count(j in d)(j == t) <= budget %Remain in budget for each time t
 );
 
-constraint forall(x in 1..n)(
+constraint forall(x in 1..n)(   %Controls the spread of the fire
     forall(y in 1..length(row(G, x)))(
         if G[x, y] == 1 /\ b[y] != 0 then
             if b[x] == 0 \/ b[x] > b[y] then
